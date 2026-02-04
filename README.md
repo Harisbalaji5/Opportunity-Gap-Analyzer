@@ -186,6 +186,14 @@ Real-world problem solving
 
 End-to-end application development
 
+## 📊 Application Preview
+
+![Dashboard](assets/Home%20Screen.png)
+![Git Analysis](assets/github%20analysis.png)
+![Skill Matching](assets/matching%20skills.png)
+![Skill gap overview](assets/skillgap%20overview.png)
+![Readiness Score](assets/Readiness%20Score.png)
+
 🤝 Contribution
 Contributions are welcome!
 
