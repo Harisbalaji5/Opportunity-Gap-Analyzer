@@ -34,6 +34,9 @@ if st.button("Analyze", key="analyze_button"):
 
         st.success("Analysis Completed")
 
+        st.divider()
+        st.metric(label="Career Readiness Score", value=f"{round(score,2)}%")
+
         st.subheader("Match Score")
         st.write(f"{round(score,2)}%")
 
