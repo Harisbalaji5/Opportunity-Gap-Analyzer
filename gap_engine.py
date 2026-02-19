@@ -1,4 +1,3 @@
-from semantic_matcher import semantic_skill_match
 import re
 import json
 from gen_ai_engine import (
@@ -8,13 +7,23 @@ from gen_ai_engine import (
 )
 
 def analyze_skill_gap(user_skills, job_skills):
-    matched = []
-    missing = []
-
     if not job_skills:
-        return matched, missing, 0
+        return [], [], 0
 
-    matched = semantic_skill_match(user_skills, job_skills)
+    # Fast lexical matcher to guarantee responsive processing.
+    user_lower = [s.lower().strip() for s in user_skills]
+    matched = []
+    for js in job_skills:
+        j = js.lower().strip()
+        if any(
+            j == u
+            or j in u
+            or u in j
+            or bool(set(j.split()) & set(u.split()))
+            for u in user_lower
+        ):
+            matched.append(js)
+
     missing = [skill for skill in job_skills if skill not in matched]
 
     match_score = (len(matched) / len(job_skills)) * 100

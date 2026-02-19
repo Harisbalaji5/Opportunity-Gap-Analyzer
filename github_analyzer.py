@@ -7,14 +7,19 @@ def analyze_github_profile(username):
     user_url = GITHUB_API_URL + username
     repos_url = user_url + "/repos"
 
-    user_response = requests.get(user_url)
-    repos_response = requests.get(repos_url)
+    try:
+        user_response = requests.get(user_url, timeout=6)
+        repos_response = requests.get(repos_url, timeout=6)
+    except requests.RequestException:
+        return None
 
     if user_response.status_code != 200:
         return None
 
     user_data = user_response.json()
-    repos_data = repos_response.json()
+    repos_data = repos_response.json() if repos_response.status_code == 200 else []
+    if not isinstance(repos_data, list):
+        repos_data = []
 
     total_repos = user_data.get("public_repos", 0)
     followers = user_data.get("followers", 0)

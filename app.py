@@ -4,6 +4,7 @@ import plotly.express as px
 import pandas as pd
 from datetime import datetime
 import requests
+import time
 
 from github_analyzer import analyze_github_profile, analyze_github_with_ai
 from resume_parser import extract_text_from_pdf, extract_text_from_docx, extract_skills_from_resume
@@ -29,7 +30,7 @@ st.set_page_config(page_title="AI Opportunity Gap Analyzer", layout="wide", page
 st.markdown("""
     <style>
     /* Global Font & Colors */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
     
     :root {
         --primary-color: #4F46E5; /* Indigo 600 */
@@ -42,7 +43,7 @@ st.markdown("""
     }
 
     html, body, [class*="css"] {
-        font-family: 'Outfit', sans-serif;
+        font-family: 'Manrope', sans-serif;
         color: var(--text-color);
         background-color: var(--background-color);
     }
@@ -56,6 +57,7 @@ st.markdown("""
     
     /* Headings */
     h1, h2, h3 {
+        font-family: 'Sora', sans-serif;
         color: var(--text-color);
         font-weight: 700;
         letter-spacing: -0.025em;
@@ -133,7 +135,7 @@ st.markdown("""
     }
     
     /* Inputs */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stFileUploader div {
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div {
         background-color: white !important;
         border-radius: 10px;
         border: 1px solid var(--border-color);
@@ -142,6 +144,20 @@ st.markdown("""
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within {
         border-color: var(--primary-color);
         box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+    .upload-title {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 0.35rem;
+    }
+    [data-testid="stFileUploaderDropzone"] {
+        background: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 10px !important;
+    }
+    [data-testid="stFileUploaderDropzone"] * {
+        color: #1E293B !important;
     }
 
     /* Force Text Colors */
@@ -178,7 +194,45 @@ st.markdown("""
         border-color: #C7D2FE;
         font-weight: 600;
     }
-    </style>
+    .hero-shell {
+        background: linear-gradient(140deg, #EEF2FF 0%, #FFFFFF 55%, #ECFDF5 100%);
+        border: 1px solid #DDE5F2;
+        border-radius: 18px;
+        padding: 2rem;
+        margin-top: 0.75rem;
+        box-shadow: 0 14px 24px -20px rgba(15, 23, 42, 0.35);
+    }
+    .hero-title {
+        font-family: 'Sora', sans-serif;
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: #0B1320 !important;
+        text-shadow: none;
+        margin: 0;
+    }
+    .hero-copy {
+        font-size: 1rem;
+        color: #475569;
+        margin-top: 0.6rem;
+        margin-bottom: 1rem;
+        max-width: 760px;
+    }
+    .hero-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+    .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        background: #FFFFFF;
+        border: 1px solid #D2DAE8;
+        color: #334155;
+        border-radius: 999px;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }    </style>
 """, unsafe_allow_html=True)
 
 # --- CACHED FUNCTIONS ---
@@ -267,12 +321,26 @@ def generate_report(role, career_score, missing_skills, recommendations):
         
     return report
 
+
+def merge_recommendations(primary, fallback, min_items=6):
+    """Merge AI and fallback recommendations and deduplicate."""
+    primary = primary or []
+    fallback = fallback or []
+    merged = []
+    seen = set()
+    for rec in primary + fallback:
+        key = rec.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            merged.append(rec)
+    return merged[: max(min_items, len(merged))]
+
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("### 🛠️ Configuration")
     role = st.selectbox("Job Role", list(job_roles.keys()))
-    uploaded_file = st.file_uploader("Resume (PDF/DOCX)", type=["pdf", "docx"])
-    github_username = st.text_input("GitHub Username (Optional)")
+    st.markdown('<div class="upload-title">Resume (PDF/DOCX)</div>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("", type=["pdf", "docx"], label_visibility="collapsed")
+    github_username = st.text_input("GitHub Username")
     
     st.markdown("---")
     analyze_btn = st.button("Run Analysis", type="primary")
@@ -300,89 +368,97 @@ if 'analysis_complete' not in st.session_state:
 # --- MAIN CONTENT ---
 if not st.session_state.analysis_complete:
     st.markdown("""
-        <div style="text-align:center; padding: 4rem 2rem;">
-            <h1>🚀 Optimize Your Career Path</h1>
-            <p style="font-size:1.2rem; color:#6B7280; max-width:600px; margin:0 auto;">
-                Advanced AI analysis to benchmark your skills, estimate your salary potential, and simulate interviews.
+        <div class="hero-shell">
+            <h2 class="hero-title">Optimize Your Career Path</h2>
+            <p class="hero-copy">
+                Upload your resume and role to get a clean, actionable analysis across readiness, skill gaps, and growth roadmap.
             </p>
+            <div class="hero-row">
+                <span class="hero-pill">Resume Analysis</span>
+                <span class="hero-pill">Role-Based Matching</span>
+                <span class="hero-pill">GitHub Insights</span>
+                <span class="hero-pill">AI Recommendations</span>
+            </div>
         </div>
     """, unsafe_allow_html=True)
-    
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown(metric_card_html("Skill Gap", "Precise", "Semantic Matching"), unsafe_allow_html=True)
-    with c3:
-        st.markdown(metric_card_html("Interview AI", "Adaptive", "Mock Questions", "#7C3AED"), unsafe_allow_html=True)
-
 # Processing Logic
 if analyze_btn and uploaded_file:
-    with st.spinner("Processing Profile..."):
-        # Extraction
-        if uploaded_file.type == "application/pdf":
-            resume_text = cached_extract_pdf(uploaded_file)
-        else:
-            resume_text = cached_extract_docx(uploaded_file)
+    try:
+        with st.spinner("Processing Profile..."):
+            # Extraction
+            if uploaded_file.type == "application/pdf":
+                resume_text = cached_extract_pdf(uploaded_file)
+            else:
+                resume_text = cached_extract_docx(uploaded_file)
+                
+            # Analysis
+            user_skills = extract_skills_from_resume(resume_text)
+            job_skills = get_skills_for_role(role)
+            # Hard bypass of cached_analyze_skills: deterministic fast lexical match.
+            user_lower = [s.lower().strip() for s in user_skills]
+            matched = []
+            for js in job_skills:
+                j = js.lower().strip()
+                if any(
+                    j == u
+                    or j in u
+                    or u in j
+                    or bool(set(j.split()) & set(u.split()))
+                    for u in user_lower
+                ):
+                    matched.append(js)
+            missing = [skill for skill in job_skills if skill not in matched]
+            score = (len(matched) / len(job_skills)) * 100 if job_skills else 0
             
-        # Analysis
-        user_skills = extract_skills_from_resume(resume_text)
-        job_skills = get_skills_for_role(role)
-        matched, missing, score = cached_analyze_skills(user_skills, job_skills)
-        
-        resume_quality_score, resume_feedback = calculate_resume_quality(resume_text)
-        experience_level = calculate_experience_level(resume_text)
-        ai_level, ai_level_desc = calculate_ai_proficiency(user_skills)
-        impact_score, impact_feedback = analyze_resume_impact(resume_text)
-        
-        github_data = None
-        github_score = 0
-        github_feedback = None
-        
-        if github_username:
-            github_data = cached_github_analysis(github_username)
-            if github_data: 
-                github_score = calculate_github_score(github_data)
-                # AI Analysis
-                with st.spinner("🤖 AI Recruiter is reviewing GitHub..."):
-                    github_feedback = cached_github_ai_feedback(github_username, github_data)
+            resume_quality_score, resume_feedback = calculate_resume_quality(resume_text)
+            experience_level = calculate_experience_level(resume_text)
+            ai_level, ai_level_desc = calculate_ai_proficiency(user_skills)
+            impact_score, impact_feedback = analyze_resume_impact(resume_text)
+            
+            github_data = None
+            github_score = 0
+            github_feedback = None
+            
+            github_username = github_username.strip()
+            if github_username:
+                github_data = cached_github_analysis(github_username)
+                if github_data:
+                    github_score = calculate_github_score(github_data)
 
-        career_score = calculate_career_readiness(score, github_score)
-        
-        
-        # AI Recommendations
-        with st.spinner("🤖 AI Coach is planning your curriculum..."):
-            ai_recs = cached_ai_recommendations(missing, role)
-            
-        # AI Roadmap
-        with st.spinner("🗺️ Generating Week-by-Week Roadmap..."):
-            ai_roadmap = cached_ai_roadmap(missing, role)
+            career_score = calculate_career_readiness(score, github_score)
 
-        # AI Resume Audit
+            # Fast path: avoid long AI generation during initial processing.
+            ai_recs = merge_recommendations([], get_detailed_recommendations(missing), min_items=8)
+            ai_roadmap = None
+            ai_audit = None
+            github_feedback = None
             
-        # AI Resume Audit
-        with st.spinner("🤖 AI Recruiter is critiquing your resume..."):
-            ai_audit = cached_ai_resume_audit(resume_text, role)
-        
-        # Save to Session State
-        st.session_state.analysis_complete = True
-        st.session_state.role = role
-        st.session_state.career_score = career_score
-        st.session_state.matched = matched
-        st.session_state.missing = missing
-        st.session_state.score = score
-        st.session_state.resume_quality_score = resume_quality_score
-        st.session_state.resume_feedback = resume_feedback
-        st.session_state.experience_level = experience_level
-        st.session_state.ai_level = ai_level
-        st.session_state.ai_level_desc = ai_level_desc
-        st.session_state.impact_score = impact_score
-        st.session_state.impact_feedback = impact_feedback
-        st.session_state.github_score = github_score
-        st.session_state.ai_recs = ai_recs
-        st.session_state.ai_roadmap = ai_roadmap
-        st.session_state.ai_audit = ai_audit
-        st.session_state.github_data_exists = bool(github_data)
-        st.session_state.github_data = github_data
-        st.session_state.github_feedback = github_feedback
+            # Save to Session State
+            st.session_state.analysis_complete = True
+            st.session_state.role = role
+            st.session_state.career_score = career_score
+            st.session_state.matched = matched
+            st.session_state.missing = missing
+            st.session_state.score = score
+            st.session_state.resume_quality_score = resume_quality_score
+            st.session_state.resume_feedback = resume_feedback
+            st.session_state.experience_level = experience_level
+            st.session_state.ai_level = ai_level
+            st.session_state.ai_level_desc = ai_level_desc
+            st.session_state.impact_score = impact_score
+            st.session_state.impact_feedback = impact_feedback
+            st.session_state.github_score = github_score
+            st.session_state.ai_recs = ai_recs
+            st.session_state.ai_roadmap = ai_roadmap
+            st.session_state.ai_audit = ai_audit
+            st.session_state.github_data_exists = bool(github_data)
+            st.session_state.github_data = github_data
+            st.session_state.github_feedback = github_feedback
+            st.session_state.github_username = github_username
+            st.session_state.resume_text = resume_text
+    except Exception as exc:
+        st.session_state.analysis_complete = False
+        st.error(f"Processing failed: {exc}")
 
 # Render Results if Analysis Complete
 if st.session_state.analysis_complete:
@@ -408,9 +484,12 @@ if st.session_state.analysis_complete:
     st.markdown(f"## Analysis for **{role}**")
     
     # Top Metrics
+    ai_level_parts = ai_level.split(maxsplit=1)
+    ai_level_main = ai_level_parts[0] if ai_level_parts else ai_level
+    ai_level_sub = ai_level_parts[1] if len(ai_level_parts) > 1 else ""
     c1, c2, c3 = st.columns(3)
     with c1: st.markdown(metric_card_html("Readiness", f"{career_score}%", "Overall Score", "#2563EB"), unsafe_allow_html=True)
-    with c2: st.markdown(metric_card_html("AI Proficiency", ai_level.split()[0], ai_level.split()[1], "#7C3AED"), unsafe_allow_html=True)
+    with c2: st.markdown(metric_card_html("AI Proficiency", ai_level_main, ai_level_sub, "#7C3AED"), unsafe_allow_html=True)
     with c3: st.markdown(metric_card_html("GitHub Impact", str(github_score), "Code Quality", "#D97706"), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -468,11 +547,15 @@ if st.session_state.analysis_complete:
             st.markdown("#### ⚠️ Missing Skills")
             html = "".join([skill_chip(s, "missing") for s in missing])
             st.markdown(html, unsafe_allow_html=True)
-        
-        st.markdown("<br>#### 💡 Recommended Projects", unsafe_allow_html=True)
+        st.markdown("<br>#### Recommended Projects", unsafe_allow_html=True)
+        if st.button("Generate Rich AI Recommendations", key="gen_rich_recs"):
+            with st.spinner("Generating expanded recommendations..."):
+                ai_primary = cached_ai_recommendations(missing, role)
+                ai_fallback = get_detailed_recommendations(missing)
+                st.session_state.ai_recs = merge_recommendations(ai_primary, ai_fallback, min_items=8)
         if st.session_state.get("ai_recs"):
-             for rec in st.session_state.ai_recs:
-                 st.info(rec)
+            for rec in st.session_state.ai_recs:
+                st.info(rec)
 
     # Tab 3: Resume
     with tabs[2]:
@@ -486,15 +569,24 @@ if st.session_state.analysis_complete:
             st.metric("Impact Score", f"{impact_score}/100")
             st.progress(impact_score)
             for f in impact_feedback: st.info(f)
-            
+        if st.button("Run Deep AI Resume Analysis", key="gen_deep_audit"):
+            with st.spinner("Running deep AI analysis..."):
+                st.session_state.ai_audit = cached_ai_resume_audit(
+                    st.session_state.get("resume_text", ""),
+                    role
+                )
+
         if st.session_state.get("ai_audit"):
             st.markdown("---")
-            st.markdown("### 🤖 Deep Dive Audit (AI)")
+            st.markdown("### Deep Dive Audit (AI)")
             st.warning(st.session_state.ai_audit)
 
-    # Tab 4: Roadmap
+        # Tab 4: Roadmap
     with tabs[3]:
-        st.markdown("### 🗺️ AI Learning Roadmap")
+        st.markdown("### AI Learning Roadmap")
+        if st.button("Generate AI Roadmap", key="gen_ai_roadmap"):
+            with st.spinner("Building roadmap..."):
+                st.session_state.ai_roadmap = cached_ai_roadmap(missing, role)
         if st.session_state.get("ai_roadmap"):
             st.markdown(st.session_state.ai_roadmap)
         else:
@@ -507,3 +599,9 @@ if st.session_state.analysis_complete:
         st.download_button("Download PDF/Text Report", report_txt, file_name="career_report.txt")
 elif analyze_btn and not uploaded_file:
     st.warning("Please upload a resume to begin.")
+
+
+
+
+
+
