@@ -79,102 +79,46 @@ def mock_interview_questions(role, missing_skills):
     
     return questions
 
-def mock_roadmap(missing_skills):
-    if not missing_skills:
-        return """## 4-Week Career Roadmap
-
-### Goal
-Strengthen interview readiness and portfolio quality.
-
-### Week 1: Baseline and Planning
-- Audit your current projects and identify measurable gaps.
-- Set a weekly schedule (8-10 focused hours).
-- Define one capstone project scope and acceptance criteria.
-
-### Week 2: Build and Iterate
-- Implement core features for your capstone.
-- Write concise documentation and usage notes.
-- Add tests and basic quality checks.
-
-### Week 3: Polish and Showcase
-- Improve UX, error handling, and performance.
-- Prepare a role-focused README and demo script.
-- Publish progress updates and lessons learned.
-
-### Week 4: Interview Readiness
-- Run mock interviews (technical + behavioral).
-- Refine project explanations using STAR format.
-- Finalize portfolio links and resume bullets.
-"""
-
+def mock_roadmap(missing_skills, role="Target Role"):
     skill_a = missing_skills[0] if len(missing_skills) > 0 else "Core Fundamentals"
     skill_b = missing_skills[1] if len(missing_skills) > 1 else "Applied Practice"
     skill_c = missing_skills[2] if len(missing_skills) > 2 else "System Integration"
-    all_skills = ", ".join(missing_skills)
+    skill_text = ", ".join(missing_skills) if missing_skills else "Foundational role skills"
 
-    return f"""## 4-Week Structured Learning Roadmap
+    return f"""## Career Timeline Roadmap ({role})
 
-### Target Skills
-{all_skills}
+### Goal
+Transition to a job-ready {role} profile with visible project proof and interview readiness.
 
-### Outcome by Week 4
-- Deliver one portfolio-grade project mapped to the target role.
-- Demonstrate hands-on capability in {skill_a}, {skill_b}, and {skill_c}.
-- Prepare concise interview-ready explanations and measurable impact bullets.
+### Step 1: Brief (Days 1-2)
+- Define target outcomes for {role} and baseline your current level.
+- Prioritize top skill gaps: {skill_text}.
+- **Output:** 1-page learning contract with weekly time blocks.
 
-### Week 1: Foundation Sprint ({skill_a})
-**Focus**
-- Build conceptual clarity and environment setup.
-- Complete 2-3 focused labs on {skill_a}.
+### Step 2: Sketch (Days 3-5)
+- Design a capstone concept mapped to hiring expectations.
+- Break it into modules covering {skill_a}, {skill_b}, and {skill_c}.
+- **Output:** Architecture sketch + feature backlog.
 
-**Deliverable**
-- One mini-project or notebook showing core workflows.
+### Step 3: Solution Sprint (Week 2)
+- Build core module for {skill_a} and one practical use case.
+- Add data flow, validation, and basic test checks.
+- **Output:** Working prototype v1 with README.
 
-**Checkpoint**
-- Explain key concepts of {skill_a} in under 3 minutes.
+### Step 4: Design and Depth (Week 3)
+- Implement advanced module for {skill_b} and integrate {skill_c}.
+- Improve reliability, code structure, and explainability.
+- **Output:** Capstone v2 with metrics and screenshots.
 
-### Week 2: Applied Build ({skill_b})
-**Focus**
-- Implement role-relevant use cases with real or realistic data.
-- Add validation, edge-case handling, and clean structure.
+### Step 5: Presentation (Week 4 - Part 1)
+- Prepare portfolio narrative and STAR stories tied to outcomes.
+- Create a 3-5 minute project walkthrough demo.
+- **Output:** Portfolio page + interview-ready pitch deck.
 
-**Deliverable**
-- Feature-complete module demonstrating {skill_b}.
-
-**Checkpoint**
-- Record a short demo and document decisions/tradeoffs.
-
-### Week 3: Integration and Scale ({skill_c})
-**Focus**
-- Integrate prior modules into one coherent project.
-- Improve reliability, performance, and maintainability.
-
-**Deliverable**
-- Integrated capstone v1 with README and architecture notes.
-
-**Checkpoint**
-- Pass self-review checklist: correctness, readability, reproducibility.
-
-### Week 4: Portfolio and Interview Readiness
-**Focus**
-- Final polish: tests, docs, screenshots, and deployment/demo flow.
-- Prepare interview stories tied to your capstone.
-
-**Deliverable**
-- Final capstone v2 + role-specific resume updates.
-
-**Checkpoint**
-- Complete 2 mock interviews and refine weak areas.
-
-### Daily Cadence (Recommended)
-- 60-90 min learning block
-- 60-90 min implementation block
-- 15 min reflection log (what worked, blockers, next step)
-
-### Recommended Resources
-- Official docs for each target skill first
-- One high-quality course per skill (avoid course-hopping)
-- Problem sets / labs for deliberate practice
+### Step 6: Revision (Week 4 - Part 2)
+- Run 2 mock interviews and patch weak answers.
+- Refine resume bullets with measurable impact statements.
+- **Output:** Final resume + finalized capstone + action checklist.
 """
 
 def mock_audit(role):
@@ -232,47 +176,36 @@ def generate_interview_questions(role, missing_skills):
 
 def generate_learning_roadmap(missing_skills, role):
     """
-    Generates a 4-week roadmap using AI with a fallback.
+    Generates a timeline-style roadmap using AI with a fallback.
     """
     prompt = f"""
     You are a senior career coach.
-    Create a strict, structured 4-week roadmap for a {role}.
+    Create a strict, structured career timeline roadmap for a {role}.
     Missing skills: {', '.join(missing_skills)}.
 
     Return MARKDOWN using this exact section structure:
-    1) ## 4-Week Structured Learning Roadmap
-    2) ### Target Skills
-    3) ### Outcome by Week 4
-    4) ### Week 1: Foundation Sprint
-       - Focus
-       - Deliverable
-       - Checkpoint
-    5) ### Week 2: Applied Build
-       - Focus
-       - Deliverable
-       - Checkpoint
-    6) ### Week 3: Integration and Scale
-       - Focus
-       - Deliverable
-       - Checkpoint
-    7) ### Week 4: Portfolio and Interview Readiness
-       - Focus
-       - Deliverable
-       - Checkpoint
-    8) ### Daily Cadence (Recommended)
-    9) ### Recommended Resources
+    1) ## Career Timeline Roadmap ({role})
+    2) ### Goal
+    3) ### Step 1: Brief (Days 1-2)
+    4) ### Step 2: Sketch (Days 3-5)
+    5) ### Step 3: Solution Sprint (Week 2)
+    6) ### Step 4: Design and Depth (Week 3)
+    7) ### Step 5: Presentation (Week 4 - Part 1)
+    8) ### Step 6: Revision (Week 4 - Part 2)
 
     Requirements:
-    - Provide practical, role-specific tasks.
-    - Include measurable outputs each week.
-    - Keep total response under 350 words.
+    - Each step must include:
+      - 2 concise action bullets
+      - 1 output line in format: **Output:** ...
+    - Provide practical, role-specific tasks with measurable outputs.
+    - Keep total response under 320 words.
     """
     
     response = query_ollama(prompt)
-    if response and "Week 1" in response and "Deliverable" in response:
+    if response and "Step 1" in response and "Step 6" in response and "**Output:**" in response:
         return response
         
-    return mock_roadmap(missing_skills)
+    return mock_roadmap(missing_skills, role)
 
 def ai_resume_audit(resume_text, role):
     """

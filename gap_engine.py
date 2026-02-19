@@ -193,5 +193,65 @@ def generate_recommendations(missing_skills, role):
 def ai_resume_audit(resume_text, role):
     return gen_audit_ai(resume_text, role)
 
+def _build_structured_roadmap(missing_skills, role):
+    skills = missing_skills[:]
+    while len(skills) < 3:
+        skills.append("Core Fundamentals")
+    s1, s2, s3 = skills[0], skills[1], skills[2]
+    skills_text = ", ".join(missing_skills) if missing_skills else "Core interview and project readiness"
+    suggestions = get_detailed_recommendations(missing_skills)[:6]
+    suggestion_line = suggestions[0] if suggestions else "Build one measurable project and document outcomes."
+
+    return f"""## Career Timeline Roadmap ({role})
+
+### Goal
+Build a job-ready {role} profile with strong project proof and interview clarity.
+
+### Step 1: Brief (Days 1-2)
+- Define hiring-aligned goals and baseline your current level.
+- Prioritize top gaps: {skills_text}.
+- **Output:** 1-page action plan with time blocks and success metrics.
+
+### Step 2: Sketch (Days 3-5)
+- Design one capstone project mapped to {role} expectations.
+- Split scope into modules for {s1}, {s2}, and {s3}.
+- **Output:** System sketch + milestone backlog.
+
+### Step 3: Solution Sprint (Week 2)
+- Build core functionality around {s1}.
+- Add validation, error handling, and a simple test flow.
+- **Output:** Prototype v1 with runnable instructions.
+
+### Step 4: Design and Depth (Week 3)
+- Expand feature depth with {s2} and integrate {s3}.
+- Improve performance, structure, and maintainability.
+- **Output:** Capstone v2 with measurable improvements.
+
+### Step 5: Presentation (Week 4 - Part 1)
+- Prepare portfolio narrative focused on business impact.
+- Create interview stories and a short project walkthrough.
+- **Output:** Portfolio-ready case study and demo script.
+
+### Step 6: Revision (Week 4 - Part 2)
+- Run two mock interviews and refine weak areas.
+- Finalize resume bullets and align to target role keywords.
+- **Output:** Final resume + final capstone submission.
+
+### Priority Recommendation
+- {suggestion_line}
+"""
+
+
+def _roadmap_is_structured(text):
+    if not text:
+        return False
+    timeline_tokens = ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5", "Step 6", "Output"]
+    week_tokens = ["Week 1", "Week 2", "Week 3", "Week 4", "Deliverable", "Checkpoint"]
+    return all(token in text for token in timeline_tokens) or all(token in text for token in week_tokens)
+
+
 def generate_learning_roadmap(missing_skills, role):
-    return gen_roadmap_ai(missing_skills, role)
+    ai_roadmap = gen_roadmap_ai(missing_skills, role)
+    if _roadmap_is_structured(ai_roadmap):
+        return ai_roadmap
+    return _build_structured_roadmap(missing_skills, role)
