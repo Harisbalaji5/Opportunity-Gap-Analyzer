@@ -129,6 +129,12 @@ st.markdown("""
         box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.5);
         transform: translateY(-1px);
     }
+    .stDownloadButton > button {
+        color: #FFFFFF !important;
+    }
+    .stDownloadButton > button:hover {
+        color: #FFFFFF !important;
+    }
     
     /* Sidebar */
     [data-testid="stSidebar"] {
@@ -160,6 +166,12 @@ st.markdown("""
     }
     [data-testid="stFileUploaderDropzone"] * {
         color: #1E293B !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button,
+    [data-testid="stFileUploaderDropzone"] button *,
+    [data-testid="stFileUploaderDropzone"] [role="button"],
+    [data-testid="stFileUploaderDropzone"] [role="button"] * {
+        color: #FFFFFF !important;
     }
 
     /* Force Text Colors */
@@ -384,16 +396,20 @@ st.markdown("""
     }
     .timeline-title {
         margin: 0;
-        color: #0F172A;
+        color: #020617 !important;
         font-size: 1rem;
         font-weight: 800;
     }
     .timeline-window {
         margin-top: 0.2rem;
-        color: #4F46E5;
+        color: #020617 !important;
         font-weight: 700;
         font-size: 0.82rem;
         letter-spacing: 0.02em;
+    }
+    .timeline-card h4.timeline-title,
+    .timeline-card .timeline-window {
+        color: #020617 !important;
     }
     .timeline-actions {
         margin: 0.6rem 0 0.4rem 0;
@@ -546,6 +562,83 @@ def generate_report(role, career_score, missing_skills, recommendations):
     return report
 
 
+def get_github_recommendations(github_data):
+    if not github_data:
+        return [
+            "Add a GitHub username to unlock profile-based recommendations.",
+            "Publish 2-3 portfolio-ready repositories with clean READMEs.",
+            "Pin your best projects and include setup + demo details."
+        ]
+
+    recs = []
+    total_repos = int(github_data.get("total_repos", 0))
+    followers = int(github_data.get("followers", 0))
+    total_stars = int(github_data.get("total_stars", 0))
+    languages = github_data.get("languages", {}) or {}
+
+    if total_repos < 5:
+        recs.append("Push at least 5 public repos aligned to your target role.")
+    if total_stars < 10:
+        recs.append("Improve README clarity and share projects to increase stars and visibility.")
+    if len(languages) < 2:
+        recs.append("Show skill breadth by adding projects in at least 2 relevant languages.")
+    if followers < 10:
+        recs.append("Contribute to open source and stay active weekly to grow followers.")
+
+    if not recs:
+        recs.append("Keep consistency: 2 quality commits per week and one polished project per month.")
+        recs.append("Add measurable outcomes in project READMEs (latency, accuracy, cost, scale).")
+
+    return recs[:4]
+
+
+def generate_full_report(
+    role,
+    career_score,
+    missing_skills,
+    recommendations,
+    github_username="",
+    github_data=None,
+    github_feedback="",
+):
+    report = f"""
+    AI CAREER ANALYSIS REPORT
+    -------------------------
+    Target Role: {role}
+    Date: {datetime.now().strftime("%Y-%m-%d")}
+    
+    OVERALL READINESS: {career_score}%
+    
+    MISSING SKILLS:
+    {', '.join(missing_skills) if missing_skills else "None - Great job!"}
+    
+    RECOMMENDATIONS:
+    """
+    for rec in recommendations:
+        report += f"- {rec}\n"
+
+    report += "\nGITHUB ANALYSIS:\n"
+    if github_data:
+        report += f"- Username: {github_username or 'Provided'}\n"
+        report += f"- Public Repositories: {github_data.get('total_repos', 0)}\n"
+        report += f"- Followers: {github_data.get('followers', 0)}\n"
+        report += f"- Total Stars: {github_data.get('total_stars', 0)}\n"
+        languages = github_data.get("languages", {}) or {}
+        top_langs = ", ".join(list(languages.keys())[:5]) if languages else "Not available"
+        report += f"- Top Languages: {top_langs}\n"
+    else:
+        report += "- GitHub profile data not available.\n"
+
+    if github_feedback:
+        report += f"\nAI GITHUB REVIEW:\n{github_feedback}\n"
+
+    report += "\nGITHUB SUGGESTIONS:\n"
+    for item in get_github_recommendations(github_data):
+        report += f"- {item}\n"
+
+    return report
+
+
 def merge_recommendations(primary, fallback, min_items=6):
     """Merge AI and fallback recommendations and deduplicate."""
     primary = primary or []
@@ -570,29 +663,43 @@ def _render_timeline_roadmap(roadmap_text):
     goal_parts = []
     in_goal = False
 
+    def _parse_step_heading(text):
+        patterns = [
+            r"^###\s*Step\s*(\d+)\s*[:\-]\s*(.+)$",
+            r"^\s*Step\s*(\d+)\s*[:\-]\s*(.+)$",
+            r"^###\s*Week\s*(\d+)\s*[:\-]\s*(.+)$",
+            r"^\s*Week\s*(\d+)\s*[:\-]\s*(.+)$",
+            r"^\s*(\d+)\.\s*Step\s*\d*\s*[:\-]\s*(.+)$",
+        ]
+        for pattern in patterns:
+            match = re.match(pattern, text, flags=re.IGNORECASE)
+            if match:
+                return match.group(1), match.group(2).replace("**", "").strip()
+        return None, None
+
     for raw in lines:
         line = raw.strip()
         if not line:
             continue
 
-        if line.startswith("### Goal"):
+        if line.lower().startswith("### goal") or line.lower().startswith("goal:"):
             in_goal = True
             continue
 
-        step_match = re.match(r"^###\s*Step\s*(\d+)\s*:\s*(.+)$", line)
-        if step_match:
+        step_num, step_title = _parse_step_heading(line)
+        if step_num and step_title:
             in_goal = False
             if current:
                 steps.append(current)
             current = {
-                "num": step_match.group(1),
-                "title": step_match.group(2).replace("**", "").strip(),
+                "num": step_num,
+                "title": step_title,
                 "actions": [],
                 "output": "",
             }
             continue
 
-        if line.startswith("### "):
+        if line.startswith("### ") or line.startswith("## "):
             in_goal = False
             continue
 
@@ -604,11 +711,14 @@ def _render_timeline_roadmap(roadmap_text):
             continue
 
         cleaned = line.replace("**", "").strip()
-        if "Output:" in cleaned:
-            current["output"] = cleaned.split("Output:", 1)[1].strip()
+        if "Output:" in cleaned or "Deliverable:" in cleaned:
+            if "Output:" in cleaned:
+                current["output"] = cleaned.split("Output:", 1)[1].strip()
+            else:
+                current["output"] = cleaned.split("Deliverable:", 1)[1].strip()
             continue
 
-        if cleaned.startswith("- "):
+        if cleaned.startswith("- ") or cleaned.startswith("* "):
             action_text = cleaned[2:].strip()
             if action_text and "Output:" not in action_text:
                 current["actions"].append(action_text)
@@ -639,22 +749,21 @@ def _render_timeline_roadmap(roadmap_text):
         )
         output_text = step["output"] or "Complete this step with a measurable deliverable."
 
+        window_html = f'<div class="timeline-window">{html_escape(window)}</div>' if window else ""
         step_blocks.append(
-            f"""
-            <div class="timeline-step {side_class}">
-                <div class="timeline-dot">{html_escape(step["num"])}</div>
-                <div class="timeline-card">
-                    <h4 class="timeline-title">{html_escape(title)}</h4>
-                    {'<div class="timeline-window">' + html_escape(window) + '</div>' if window else ''}
-                    <ul class="timeline-actions">{actions_html}</ul>
-                    <p class="timeline-output"><strong>Output:</strong> {html_escape(output_text)}</p>
-                </div>
-            </div>
-            """
+            f'<div class="timeline-step {side_class}">'
+            f'<div class="timeline-dot">{html_escape(step["num"])}</div>'
+            f'<div class="timeline-card">'
+            f'<h4 class="timeline-title">{html_escape(title)}</h4>'
+            f'{window_html}'
+            f'<ul class="timeline-actions">{actions_html}</ul>'
+            f'<p class="timeline-output"><strong>Output:</strong> {html_escape(output_text)}</p>'
+            f'</div>'
+            f'</div>'
         )
 
     st.markdown(
-        f'<div class="timeline-wrap">{goal_html}{"".join(step_blocks)}</div>',
+        f'{goal_html}<div class="timeline-wrap">{"".join(step_blocks)}</div>',
         unsafe_allow_html=True,
     )
     return True
@@ -663,7 +772,9 @@ def _render_timeline_roadmap(roadmap_text):
 with st.sidebar:
     role = st.selectbox("Job Role", list(job_roles.keys()))
     st.markdown('<div class="upload-title">Resume (PDF/DOCX)</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("", type=["pdf", "docx"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("", type=["pdf", "docx"], label_visibility="collapsed", key="resume_uploader")
+    if uploaded_file is not None:
+        st.session_state.uploaded_resume = uploaded_file
     github_username = st.text_input("GitHub Username")
     
     st.markdown("---")
@@ -688,6 +799,8 @@ with st.sidebar:
 # --- SESSION STATE INITIALIZATION ---
 if 'analysis_complete' not in st.session_state:
     st.session_state.analysis_complete = False
+if 'uploaded_resume' not in st.session_state:
+    st.session_state.uploaded_resume = None
 
 # --- MAIN CONTENT ---
 if not st.session_state.analysis_complete:
@@ -736,14 +849,15 @@ if not st.session_state.analysis_complete:
         </div>
     """, unsafe_allow_html=True)
 # Processing Logic
-if analyze_btn and uploaded_file:
+effective_resume = st.session_state.get("uploaded_resume")
+if analyze_btn and effective_resume:
     try:
         with st.spinner("Processing Profile..."):
             # Extraction
-            if uploaded_file.type == "application/pdf":
-                resume_text = cached_extract_pdf(uploaded_file)
+            if effective_resume.type == "application/pdf":
+                resume_text = cached_extract_pdf(effective_resume)
             else:
-                resume_text = cached_extract_docx(uploaded_file)
+                resume_text = cached_extract_docx(effective_resume)
                 
             # Analysis
             user_skills = extract_skills_from_resume(resume_text)
@@ -814,6 +928,8 @@ if analyze_btn and uploaded_file:
             st.session_state.github_feedback = github_feedback
             st.session_state.github_username = github_username
             st.session_state.resume_text = resume_text
+            # Refresh immediately so onboarding content is hidden once results are ready.
+            st.rerun()
     except Exception as exc:
         st.session_state.analysis_complete = False
         st.error(f"Processing failed: {exc}")
@@ -837,6 +953,9 @@ if st.session_state.analysis_complete:
     ai_recs = st.session_state.ai_recs
     ai_audit = st.session_state.ai_audit
     github_data_exists = st.session_state.github_data_exists
+    github_data = st.session_state.github_data
+    github_feedback = st.session_state.github_feedback
+    github_username = st.session_state.github_username
     
     # --- DASHBOARD ---
     st.markdown(f"## Analysis for **{role}**")
@@ -853,7 +972,7 @@ if st.session_state.analysis_complete:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Tabs
-    tabs = st.tabs(["📊 Overview", "🧠 Skills & Gaps", "📄 Resume", "🗺️ Roadmap", "📥 Report"] )
+    tabs = st.tabs(["Overview", "Skills & Gaps", "Resume", "GitHub", "Roadmap", "Report"])
     
     # Tab 1: Overview
     with tabs[0]:
@@ -910,7 +1029,7 @@ if st.session_state.analysis_complete:
             for rec in st.session_state.ai_recs:
                 st.info(rec)
 
-    # Tab 3: Resume
+        # Tab 3: Resume
     with tabs[2]:
         c1, c2 = st.columns(2)
         with c1:
@@ -927,8 +1046,36 @@ if st.session_state.analysis_complete:
             st.markdown("### Deep Dive Audit (AI)")
             st.warning(st.session_state.ai_audit)
 
-        # Tab 4: Roadmap
+    # Tab 4: GitHub
     with tabs[3]:
+        st.markdown("### GitHub Analysis")
+        if github_data_exists and github_data:
+            g1, g2, g3 = st.columns(3)
+            with g1:
+                st.metric("Public Repos", int(github_data.get("total_repos", 0)))
+            with g2:
+                st.metric("Followers", int(github_data.get("followers", 0)))
+            with g3:
+                st.metric("Total Stars", int(github_data.get("total_stars", 0)))
+
+            langs = github_data.get("languages", {}) or {}
+            if langs:
+                st.markdown("#### Language Footprint")
+                lang_df = pd.DataFrame({"Language": list(langs.keys()), "Repositories": list(langs.values())})
+                st.bar_chart(lang_df.set_index("Language"))
+
+            st.markdown("#### Suggestions")
+            for tip in get_github_recommendations(github_data):
+                st.info(tip)
+
+            if github_feedback:
+                st.markdown("#### AI Reviewer Notes")
+                st.info(github_feedback)
+        else:
+            st.info("No GitHub data found. Enter a valid GitHub username and run analysis again.")
+
+        # Tab 5: Roadmap
+    with tabs[4]:
         st.markdown("### AI Learning Roadmap")
         if st.session_state.get("ai_roadmap"):
             if not _render_timeline_roadmap(st.session_state.ai_roadmap):
@@ -936,13 +1083,26 @@ if st.session_state.analysis_complete:
         else:
             st.info("No roadmap generated yet.")
 
-    # Tab 5: Export
-    with tabs[4]:
-        st.markdown("### 📥 Download Report")
-        report_txt = generate_report(role, career_score, missing, ai_recs)
+    # Tab 6: Export
+    with tabs[5]:
+        st.markdown("### Download Report")
+        report_txt = generate_full_report(
+            role=role,
+            career_score=career_score,
+            missing_skills=missing,
+            recommendations=ai_recs,
+            github_username=github_username,
+            github_data=github_data,
+            github_feedback=github_feedback,
+        )
         st.download_button("Download PDF/Text Report", report_txt, file_name="career_report.txt")
-elif analyze_btn and not uploaded_file:
+elif analyze_btn and not effective_resume:
     st.warning("Please upload a resume to begin.")
+
+
+
+
+
 
 
 
